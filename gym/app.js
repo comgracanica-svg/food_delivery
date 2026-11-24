@@ -15,7 +15,7 @@ function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s)return s}
   schedule:{0:"r_push",1:"r_pull",2:"r_legs",3:null,4:"r_db",5:"r_arms",6:null},logs:[],meals:{},water:{},body:[]}}
 let S=load();
 const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
-let tab="home",A=null,foodDate=today(),trainView="main",progEx="",lib={q:"",m:""};
+let foodView="log",recM="",recV=false,viscDay=0,viscWeek=0,tab="home",A=null,foodDate=today(),trainView="main",progEx="",lib={q:"",m:""};
 try{A=JSON.parse(localStorage.getItem(AKEY))}catch(e){}
 const saveA=()=>A?localStorage.setItem(AKEY,JSON.stringify(A)):localStorage.removeItem(AKEY);
 function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("on"),1800)}
@@ -62,6 +62,7 @@ V.home=()=>{
  <div class="grow">${[["Proteini",t.p,g.p,"var(--p)"],["Ugljeni H.",t.c,g.c,"var(--c)"],["Masti",t.f,g.f,"var(--f)"]].map(([n,v,m,c])=>
   `<div class="mut row sp"><span>${n}</span><span>${Math.round(v)}/${m}g</span></div>${bar(v/m*100,c)}<div style="height:8px"></div>`).join("")}</div></div>
  <button class="btn sec full" data-a="tab" data-t="food">+ Dodaj obrok</button></div>
+ <div class="card row sp" data-a="tab" data-t="visc"><div><h3>🔥 Program: visceralna mast</h3><div class="mut">Trening + ishrana + recepti</div></div><span>›</span></div>
  <div class="card row sp"><div><h3>💧 Voda</h3><div class="mut">${w} / ${g.water} čaša</div></div>
  <div class="row"><button class="btn sec sm" data-a="water" data-n="-1">−</button><button class="btn sm" data-a="water" data-n="1">+ čaša</button></div></div>
  <div class="grid3"><div class="card stat"><b>${streakWeek()}</b><span class="mut">treninga ove nedelje</span></div>
@@ -81,6 +82,13 @@ V.train=()=>{
  <h2>Istorija</h2><div class="card">${S.logs.slice(-15).reverse().map((l,i)=>`<div class="li"><div class="grow"><div>${esc(l.name)}</div><div class="mut">${l.date.split("-").reverse().join(".")} · ${l.sets.length} serija · ${Math.round(vol(l))} kg volumen · ${l.min||0} min</div></div><button class="x" data-a="delLog" data-i="${l.id}">🗑</button></div>`).join("")||`<p class="mut">Još nema treninga.</p>`}</div>`};
 
 V.food=()=>{
+ const sub=`<div class="chips"><button class="chip ${foodView==="log"?"on":""}" data-a="fview" data-v="log">Dnevnik</button><button class="chip ${foodView==="rec"?"on":""}" data-a="fview" data-v="rec">Recepti</button><button class="chip" data-a="tab" data-t="visc">🔥 Program za visceralnu mast</button></div>`;
+ if(foodView==="rec")return sub+V.rec();
+ return sub+V.foodLog()};
+V.rec=()=>{const l=RECIPES.filter(r=>(!recM||r.meal===recM)&&(!recV||r.tags.includes("visc")));
+ return `<div class="chips"><button class="chip ${recM?"":"on"}" data-a="recm" data-m="">Svi</button>${MEALS.map(m=>`<button class="chip ${recM===m?"on":""}" data-a="recm" data-m="${m}">${m}</button>`).join("")}<button class="chip ${recV?"on":""}" data-a="recv">🔥 Visceralni</button></div>
+ ${l.map(r=>`<div class="card" data-a="recipe" data-id="${r.id}"><div class="row sp"><h3>${esc(r.name)}</h3><b>${r.k}</b></div><div class="mut">${r.meal} · ${r.min} min · P${r.p} UH${r.c} M${r.f}${r.tags.includes("visc")?" · 🔥":""}</div></div>`).join("")}`};
+V.foodLog=()=>{
  const d=foodDate,t=totals(d),g=S.goals,isT=d===today();
  return `<div class="row sp"><button class="btn sec sm" data-a="fday" data-n="-1">‹</button><b>${isT?"Danas":d.split("-").reverse().join(".")}</b><button class="btn sec sm" data-a="fday" data-n="1">›</button></div>
  <div class="card"><div class="row"><div>${ring(t.kcal/g.kcal,t.kcal>g.kcal?"#ff5c5c":"#ffd21f",`<span><b>${Math.round(g.kcal-t.kcal)}</b>kcal preostalo</span>`)}</div>
@@ -128,11 +136,27 @@ V.plan=()=>{
  <label class="btn sec full" style="display:block;text-align:center">⬆ Uvezi backup<input type="file" accept=".json" id="imp" hidden></label><div style="height:8px"></div>
  <button class="btn bad full" data-a="reset">Obriši sve podatke</button></div>`};
 
+V.visc=()=>{
+ const [wn,wt]=VISC_WEEKS[viscWeek],pl=VISC_MEALPLAN[viscDay],last=S.body.filter(b=>b.waist).at(-1);
+ const t=k=>`<ul style="margin:6px 0;padding-left:18px">${VISC_TIPS[k].map(x=>`<li style="margin:4px 0">${esc(x)}</li>`).join("")}</ul>`;
+ return `<button class="btn sec sm" data-a="tab" data-t="food">‹ Nazad</button>
+ <div class="card"><h3>🔥 Program za smanjenje visceralne masti</h3><p class="mut">Visceralna mast (oko organa u stomaku) ne može se skinuti „ciljanim" vežbama za stomak. Smanjuje se kombinacijom blagog kalorijskog deficita, treninga snage, kardija (hodanje + HIIT), više proteina i vlakana, sna i manje stresa. Obim struka je najbolji kućni pokazatelj${last?` (zadnje: ${last.waist} cm)`:""}. Ako imaš zdravstvenih problema, prvo se posavetuj sa lekarom.</p></div>
+ <h2>1) Trening – 4 nedelje</h2><div class="chips">${VISC_WEEKS.map((w,i)=>`<button class="chip ${i===viscWeek?"on":""}" data-a="vweek" data-i="${i}">Ned. ${i+1}</button>`).join("")}</div>
+ <div class="card"><b>${wn}</b><p class="mut">${wt}</p>${DAYS.map((n,i)=>{const r=VISC_ROUTINES.find(x=>x.id===VISC_SCHEDULE[i]);return `<div class="day"><b>${DAYS_S[i]}</b><span>${esc(r.name.replace("🔥 ",""))}</span></div>`}).join("")}
+ <button class="btn full" data-a="applyVisc" style="margin-top:8px">Primeni raspored i rutine</button></div>
+ <h2>2) Ishrana</h2><div class="card"><b>Šta jesti</b>${t("eat")}<b>Šta izbegavati</b>${t("avoid")}
+ <button class="btn sec full" data-a="viscGoals">Podesi kalorije (−400) i protein (2 g/kg)</button></div>
+ <h2>Plan obroka</h2><div class="chips">${DAYS_S.map((n,i)=>`<button class="chip ${i===viscDay?"on":""}" data-a="vday" data-i="${i}">${n}</button>`).join("")}</div>
+ <div class="card">${pl.map((id,i)=>{const r=RECIPES.find(x=>x.id===id);return `<div class="li" data-a="recipe" data-id="${id}"><div class="grow"><div class="mut">${MEALS[i]}</div>${esc(r.name)}</div><b>${r.k}</b></div>`}).join("")}
+ <div class="mut" style="margin-top:6px">Ukupno ~${pl.reduce((a,id)=>a+RECIPES.find(x=>x.id===id).k,0)} kcal · P ${pl.reduce((a,id)=>a+RECIPES.find(x=>x.id===id).p,0)}g – prilagodi porcije svom cilju.</div>
+ <button class="btn full" data-a="addPlan" style="margin-top:8px">Dodaj ovaj dan u dnevnik ishrane (danas)</button></div>
+ <h2>3) Navike</h2><div class="card">${t("habits")}</div>`};
+
 /* ---------- render ---------- */
-const TITLES={home:"GymFlow",train:"Trening",food:"Ishrana",prog:"Napredak",plan:"Plan"};
+const TITLES={visc:"Visceralna mast",home:"GymFlow",train:"Trening",food:"Ishrana",prog:"Napredak",plan:"Plan"};
 function render(){
  $("#view").innerHTML=V[tab]();$("#title").textContent=TITLES[tab];
- document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===tab));
+ document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===(tab==="visc"?"food":tab)));
 }
 function sheet(html){$("#panel").innerHTML=html;$("#sheet").hidden=false}
 function closeSheet(){$("#sheet").hidden=true;$("#panel").innerHTML=""}
@@ -210,7 +234,18 @@ function drawFood(){
 function calcPrev(){const f=FOODS[F.sel],a=num($("#amt").value)/100;$("#prev").innerHTML=`<b>${Math.round(f[1]*a)} kcal</b> · P ${r1(f[2]*a)}g · UH ${r1(f[3]*a)}g · M ${r1(f[4]*a)}g`}
 
 /* ---------- actions ---------- */
+function addRecipe(id,meal,date){const r=RECIPES.find(x=>x.id===id);(S.meals[date]=S.meals[date]||[]).push({meal,name:r.name,amt:0,kcal:r.k,p:r.p,c:r.c,f:r.f})}
 const act={
+ fview(el){foodView=el.dataset.v;render()},recm(el){recM=el.dataset.m;render()},recv(){recV=!recV;render()},
+ vweek(el){viscWeek=+el.dataset.i;render()},vday(el){viscDay=+el.dataset.i;render()},
+ recipe(el){const r=RECIPES.find(x=>x.id===el.dataset.id);
+  sheet(`<h3>${esc(r.name)}</h3><div class="mut">${r.meal} · ${r.min} min · ${r.k} kcal · P${r.p} UH${r.c} M${r.f}</div><b>Sastojci</b><ul>${r.ing.map(i=>`<li>${esc(i)}</li>`).join("")}</ul><b>Priprema</b><ol>${r.steps.map(i=>`<li>${esc(i)}</li>`).join("")}</ol>
+  <label>Dodaj u</label><select id="rm">${MEALS.map(m=>`<option ${m===r.meal?"selected":""}>${m}</option>`).join("")}</select><button class="btn full" style="margin-top:10px" data-a="recAdd" data-id="${r.id}">Dodaj u dnevnik (${foodDate===today()?"danas":foodDate})</button>`)},
+ recAdd(el){addRecipe(el.dataset.id,$("#rm").value,foodDate);save();closeSheet();toast("Dodato u dnevnik");render()},
+ applyVisc(){VISC_ROUTINES.forEach(r=>{const i=S.routines.findIndex(x=>x.id===r.id);if(i<0)S.routines.push(structuredClone(r))});
+  Object.assign(S.schedule,VISC_SCHEDULE);save();toast("Raspored primenjen – vidi Plan");},
+ viscGoals(){const w=S.body.at(-1)?.weight;S.goals.kcal=Math.max(1200,S.goals.kcal-400);S.goals.p=w?Math.round(w*2):S.goals.p;S.goals.f=Math.round(S.goals.kcal*0.28/9);S.goals.c=Math.max(0,Math.round((S.goals.kcal-S.goals.p*4-S.goals.f*9)/4));save();toast(`Cilj: ${S.goals.kcal} kcal`)},
+ addPlan(){VISC_MEALPLAN[viscDay].forEach((id,i)=>addRecipe(id,MEALS[i],today()));save();toast("Dan dodat u dnevnik")},
  tab(el){tab=el.dataset.t;render();scrollTo(0,0)},closeSheet,
  start(el){startSession(el.dataset.id)},startFree(){startSession(null)},resume(){drawSession()},
  water(el){const d=el.dataset.d||today();S.water[d]=Math.max(0,(S.water[d]||0)+ +el.dataset.n);save();render()},
