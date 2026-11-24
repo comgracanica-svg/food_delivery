@@ -1,4 +1,11 @@
-# GymFlow – gym aplikacija (PWA)
-Treninzi (rutine, beleženje serija, tajmer odmora), ishrana (kalorije/makroi/voda), nedeljni raspored i napredak (težina, merenja, rekordi, grafikoni). Radi offline, podaci su na telefonu.
+# GymFlow
+Gym PWA (trening, ishrana, recepti, program za visceralnu mast, raspored, napredak) + mali backend za naloge i sinhronizaciju.
 
-Pokretanje: `cd gym && python3 -m http.server 8000`, pa otvori na telefonu (HTTPS hosting, npr. GitHub Pages iz `gym/`, omogućava "Dodaj na početni ekran").
+## Pokretanje (sve u jednom)
+`node server/server.js` (Node >= 22.13) → http://localhost:8080 (server servira i `gym/`).
+Env: `PORT`, `DATA_DIR`, `SECRET`, `ALLOWED_ORIGIN` (npr. adresa GitHub Pages sajta).
+
+## Deploy
+- Docker: `docker build -t gymflow . && docker run -p 8080:8080 -v gymdata:/data gymflow`
+- Hosting (Render/Railway/Fly): Dockerfile u korenu; montiraj trajni disk na `/data`, postavi `SECRET`.
+- Samo frontend: GitHub Pages (workflow objavljuje `gym/`), pa u aplikaciji (Plan → Nalog) unesi adresu servera.

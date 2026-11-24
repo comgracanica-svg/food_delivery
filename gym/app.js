@@ -14,7 +14,21 @@ function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s)return s}
  return {goals:{kcal:2500,p:150,c:280,f:75,water:8},routines:structuredClone(DEFAULT_ROUTINES),
   schedule:{0:"r_push",1:"r_pull",2:"r_legs",3:null,4:"r_db",5:"r_arms",6:null},logs:[],meals:{},water:{},body:[]}}
 let S=load();
-const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
+const save=()=>{S._u=Date.now();localStorage.setItem(KEY,JSON.stringify(S));schedSync()};
+/* ---------- sync (backend) ---------- */
+let SY={};try{SY=JSON.parse(localStorage.getItem("gymflow.sync"))||{}}catch(e){}
+const saveSY=()=>localStorage.setItem("gymflow.sync",JSON.stringify(SY));
+let syncT=null,syncMsg="";
+const apiBase=()=>(SY.url||(location.protocol.startsWith("http")?location.origin:"")).replace(/\/$/,"");
+async function api(p,o={}){const r=await fetch(apiBase()+p,{...o,headers:{"content-type":"application/json",...(SY.token?{authorization:"Bearer "+SY.token}:{})}});
+ const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.error||"Greška "+r.status);e.status=r.status;e.j=j;throw e}return j}
+function schedSync(){if(!SY.token)return;clearTimeout(syncT);syncT=setTimeout(sync,3000)}
+async function sync(){if(!SY.token)return;
+ try{const r=await api("/api/data"),lu=S._u||0;
+  if(r.data&&r.updated>lu){S=r.data;S._u=r.updated;localStorage.setItem(KEY,JSON.stringify(S));syncMsg="Preuzeto sa servera";if(!A)render()}
+  else{if(!lu)S._u=Date.now();await api("/api/data",{method:"PUT",body:JSON.stringify({data:S,updated:S._u})});localStorage.setItem(KEY,JSON.stringify(S));syncMsg="Sinhronizovano "+new Date().toLocaleTimeString().slice(0,5)}
+ }catch(e){if(e.status===401){SY.token=null;saveSY();syncMsg="Sesija istekla, prijavi se"}else if(e.status===409){syncT=setTimeout(sync,500);return}else syncMsg="Offline / server nedostupan"}
+ if(tab==="plan"&&!A)render()}
 let foodView="log",recM="",recV=false,viscDay=0,viscWeek=0,tab="home",A=null,foodDate=today(),trainView="main",progEx="",lib={q:"",m:""};
 try{A=JSON.parse(localStorage.getItem(AKEY))}catch(e){}
 const saveA=()=>A?localStorage.setItem(AKEY,JSON.stringify(A)):localStorage.removeItem(AKEY);
@@ -132,6 +146,9 @@ V.plan=()=>{
  <div><label>Aktivnost</label><select name="act"><option value="1.375">Lagana (1-3 tr./ned.)</option><option value="1.55" selected>Umerena (3-5)</option><option value="1.725">Visoka (6-7)</option></select></div>
  <div><label>Cilj</label><select name="goal"><option value="-400">Mršavljenje</option><option value="0">Održavanje</option><option value="300" selected>Masa</option></select></div></div>
  <button class="btn sec full" style="margin-top:10px">Izračunaj i primeni</button></form>
+ <h2>Nalog i sinhronizacija</h2><div class="card">${SY.token?`<div class="mut">Prijavljen: ${esc(SY.email||"")}<br>${esc(syncMsg||"Povezano")}</div><div style="height:8px"></div><button class="btn full" data-a="syncNow">Sinhronizuj sada</button><div style="height:8px"></div><button class="btn sec full" data-a="logout">Odjavi se</button>`:
+ `<label>Adresa servera (prazno = isti sajt)</label><input id="sy_url" value="${esc(SY.url||"")}" placeholder="https://moj-server.onrender.com" autocapitalize="off"><label>Email</label><input id="sy_em" type="email" autocapitalize="off"><label>Lozinka (min 8)</label><input id="sy_pw" type="password">
+ <div class="grid2" style="margin-top:10px"><button class="btn" data-a="authgo" data-m="login">Prijavi se</button><button class="btn sec" data-a="authgo" data-m="register">Registruj</button></div><div class="mut">${esc(syncMsg)}</div>`}</div>
  <h2>Podaci</h2><div class="card"><button class="btn sec full" data-a="export">⬇ Izvezi backup (JSON)</button><div style="height:8px"></div>
  <label class="btn sec full" style="display:block;text-align:center">⬆ Uvezi backup<input type="file" accept=".json" id="imp" hidden></label><div style="height:8px"></div>
  <button class="btn bad full" data-a="reset">Obriši sve podatke</button></div>`};
@@ -236,6 +253,10 @@ function calcPrev(){const f=FOODS[F.sel],a=num($("#amt").value)/100;$("#prev").i
 /* ---------- actions ---------- */
 function addRecipe(id,meal,date){const r=RECIPES.find(x=>x.id===id);(S.meals[date]=S.meals[date]||[]).push({meal,name:r.name,amt:0,kcal:r.k,p:r.p,c:r.c,f:r.f})}
 const act={
+ async authgo(el){SY.url=$("#sy_url").value.trim();try{const r=await api("/api/"+el.dataset.m,{method:"POST",body:JSON.stringify({email:$("#sy_em").value,password:$("#sy_pw").value})});
+  SY.token=r.token;SY.email=$("#sy_em").value.trim().toLowerCase();saveSY();syncMsg="Prijavljen";toast("Prijavljen");await sync();render()}catch(e){saveSY();syncMsg=e.message;render()}},
+ syncNow(){syncMsg="Sinhronizacija…";render();sync()},
+ logout(){SY.token=null;saveSY();syncMsg="";render()},
  fview(el){foodView=el.dataset.v;render()},recm(el){recM=el.dataset.m;render()},recv(){recV=!recV;render()},
  vweek(el){viscWeek=+el.dataset.i;render()},vday(el){viscDay=+el.dataset.i;render()},
  recipe(el){const r=RECIPES.find(x=>x.id===el.dataset.id);
@@ -301,5 +322,5 @@ document.addEventListener("submit",e=>{const f=e.target.dataset.form;if(!f)retur
   S.goals.kcal=k;S.goals.p=Math.round(w*2);S.goals.f=Math.round(k*0.25/9);S.goals.c=Math.max(0,Math.round((k-S.goals.p*4-S.goals.f*9)/4));save();render();toast(`Cilj: ${k} kcal`)}
  if(f==="manual"){(S.meals[foodDate]=S.meals[foodDate]||[]).push({meal:F.meal,name:d.name,amt:0,kcal:num(d.kcal),p:num(d.p),c:num(d.c),f:num(d.f)});save();closeSheet();render()}});
 window.addEventListener("beforeunload",()=>{saveA()});
-render();if(A)drawSession();
+render();if(A)drawSession();sync();
 if("serviceWorker"in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});
