@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="sr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0b0b0b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>GymFlow</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header id="top"><span class="logo">⚡</span><h1 id="title">GymFlow</h1></header>
+<main id="view"></main>
+<nav id="nav">
+<button data-a="tab" data-t="home"><i>🏠</i>Danas</button>
+<button data-a="tab" data-t="train"><i>🏋️</i>Trening</button>
+<button data-a="tab" data-t="food"><i>🍽️</i>Ishrana</button>
+<button data-a="tab" data-t="prog"><i>📈</i>Napredak</button>
+<button data-a="tab" data-t="plan"><i>📅</i>Plan</button>
+</nav>
+<div id="session" hidden></div>
+<div id="sheet" hidden><div class="back" data-a="closeSheet"></div><div class="panel" id="panel"></div></div>
+<div id="toast"></div>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
