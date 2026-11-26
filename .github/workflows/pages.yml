@@ -1,7 +1,7 @@
 name: Deploy GymFlow
 on:
   push:
-    branches: [main]
+    branches: [main, claude/gym-app-mobile-dl0l36]
   workflow_dispatch:
 permissions:
   contents: read
